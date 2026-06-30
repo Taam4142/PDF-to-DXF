@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PDF to DXF</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --line: #d9dde3;
+      --text: #171b22;
+      --muted: #657080;
+      --accent: #177245;
+      --accent-strong: #0c5d36;
+      --warn: #a65f00;
+      --bad: #b42318;
+      --soft: #eef7f2;
+      --shadow: 0 10px 30px rgba(22, 27, 34, 0.08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px clamp(18px, 4vw, 48px);
+      border-bottom: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .status {
+      min-width: 96px;
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 13px;
+      background: #fff;
+    }
+
+    main {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: clamp(18px, 4vw, 42px);
+      display: grid;
+      grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr);
+      gap: 20px;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .controls,
+    .report {
+      padding: 18px;
+    }
+
+    .drop {
+      display: grid;
+      place-items: center;
+      min-height: 190px;
+      border: 1px dashed #9aa5b1;
+      border-radius: 8px;
+      background: #fafbfc;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .drop:hover,
+    .drop.dragging {
+      border-color: var(--accent);
+      background: var(--soft);
+    }
+
+    .drop input {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .drop-inner {
+      display: grid;
+      gap: 8px;
+      justify-items: center;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .mark {
+      width: 54px;
+      height: 64px;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--accent);
+      border-radius: 6px;
+      color: var(--accent);
+      font-weight: 800;
+      font-size: 13px;
+      background: #fff;
+    }
+
+    .file-name {
+      min-height: 20px;
+      font-size: 14px;
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: var(--text);
+      background: #fff;
+      font: inherit;
+    }
+
+    .check {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-top: 19px;
+      color: var(--text);
+    }
+
+    .check input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    button {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 9px 14px;
+      color: var(--text);
+      background: #fff;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button.primary {
+      border-color: var(--accent);
+      color: #fff;
+      background: var(--accent);
+    }
+
+    button.primary:hover {
+      background: var(--accent-strong);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      min-height: 74px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fafbfc;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: clamp(19px, 3vw, 26px);
+      line-height: 1.1;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .log {
+      min-height: 260px;
+      margin-top: 16px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #111820;
+      color: #e8edf3;
+      overflow: auto;
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+
+    .warnings {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .warning {
+      min-height: 36px;
+      padding: 9px 10px;
+      border: 1px solid #f0c36a;
+      border-radius: 6px;
+      color: var(--warn);
+      background: #fff8e8;
+      font-size: 13px;
+    }
+
+    .error {
+      border-color: #f2a7a2;
+      color: var(--bad);
+      background: #fff2f1;
+    }
+
+    @media (max-width: 820px) {
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 520px) {
+      .grid,
+      .summary {
+        grid-template-columns: 1fr;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>PDF to DXF</h1>
+    <div id="status" class="status">Ready</div>
+  </header>
+
+  <main>
+    <section class="controls" aria-label="Conversion controls">
+      <label class="drop" id="dropZone">
+        <input id="fileInput" type="file" accept="application/pdf,.pdf">
+        <span class="drop-inner">
+          <span class="mark">PDF</span>
+          <strong>Select PDF</strong>
+          <span id="fileName" class="file-name">No file selected</span>
+        </span>
+      </label>
+
+      <div class="grid">
+        <label>
+          Pages
+          <input id="pages" type="text" placeholder="All pages">
+        </label>
+        <label>
+          Unit
+          <select id="unit">
+            <option value="mm">mm</option>
+            <option value="inch">inch</option>
+            <option value="pt">pt</option>
+          </select>
+        </label>
+        <label>
+          Scale
+          <input id="scale" type="number" min="0.0001" step="0.01" value="1">
+        </label>
+        <label>
+          Curve Segments
+          <input id="curveSegments" type="number" min="2" max="128" step="1" value="16">
+        </label>
+        <label class="check">
+          <input id="includeText" type="checkbox" checked>
+          Text
+        </label>
+        <label class="check">
+          <input id="includePageBorder" type="checkbox" checked>
+          Page Border
+        </label>
+      </div>
+
+      <div class="actions">
+        <button id="inspectButton" type="button">Inspect</button>
+        <button id="convertButton" class="primary" type="button">Download DXF</button>
+      </div>
+    </section>
+
+    <section class="report" aria-label="Conversion report">
+      <div class="summary">
+        <div class="metric"><strong id="pageCount">0</strong><span>Pages</span></div>
+        <div class="metric"><strong id="vectorCount">0</strong><span>Vectors</span></div>
+        <div class="metric"><strong id="textCount">0</strong><span>Text</span></div>
+        <div class="metric"><strong id="imageCount">0</strong><span>Images</span></div>
+      </div>
+      <div id="warnings" class="warnings"></div>
+      <pre id="log" class="log">Waiting for PDF.</pre>
+    </section>
+  </main>
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const dropZone = document.getElementById("dropZone");
+    const fileName = document.getElementById("fileName");
+    const inspectButton = document.getElementById("inspectButton");
+    const convertButton = document.getElementById("convertButton");
+    const statusEl = document.getElementById("status");
+    const logEl = document.getElementById("log");
+    const warningsEl = document.getElementById("warnings");
+    const pageCount = document.getElementById("pageCount");
+    const vectorCount = document.getElementById("vectorCount");
+    const textCount = document.getElementById("textCount");
+    const imageCount = document.getElementById("imageCount");
+
+    let selectedFile = null;
+
+    fileInput.addEventListener("change", () => {
+      setFile(fileInput.files && fileInput.files[0]);
+    });
+
+    for (const eventName of ["dragenter", "dragover"]) {
+      dropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropZone.classList.add("dragging");
+      });
+    }
+
+    for (const eventName of ["dragleave", "drop"]) {
+      dropZone.addEventListener(eventName, () => {
+        dropZone.classList.remove("dragging");
+      });
+    }
+
+    dropZone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const file = event.dataTransfer.files && event.dataTransfer.files[0];
+      if (file) setFile(file);
+    });
+
+    inspectButton.addEventListener("click", async () => {
+      if (!selectedFile) return showError("Select a PDF first.");
+      await runInspect();
+    });
+
+    convertButton.addEventListener("click", async () => {
+      if (!selectedFile) return showError("Select a PDF first.");
+      await runConvert();
+    });
+
+    function setFile(file) {
+      selectedFile = file || null;
+      fileName.textContent = selectedFile ? `${selectedFile.name} (${formatBytes(selectedFile.size)})` : "No file selected";
+      if (selectedFile) runInspect();
+    }
+
+    async function runInspect() {
+      setBusy(true, "Inspecting");
+      try {
+        const response = await fetch(`/inspect?${buildQuery()}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/pdf",
+            "X-File-Name": selectedFile.name
+          },
+          body: selectedFile
+        });
+        const payload = await readJsonResponse(response);
+        renderReport(payload);
+        setStatus("Ready");
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function runConvert() {
+      setBusy(true, "Converting");
+      try {
+        const response = await fetch(`/convert/pdf-to-dxf?${buildQuery()}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/pdf",
+            "X-File-Name": selectedFile.name
+          },
+          body: selectedFile
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+        const blob = await response.blob();
+        downloadBlob(outputName(selectedFile.name), blob);
+        setStatus("Downloaded");
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function buildQuery() {
+      const params = new URLSearchParams();
+      const pages = document.getElementById("pages").value.trim();
+      if (pages) params.set("pages", pages);
+      params.set("unit", document.getElementById("unit").value);
+      params.set("scale", document.getElementById("scale").value || "1");
+      params.set("curve_segments", document.getElementById("curveSegments").value || "16");
+      params.set("include_text", String(document.getElementById("includeText").checked));
+      params.set("include_page_border", String(document.getElementById("includePageBorder").checked));
+      return params.toString();
+    }
+
+    async function readJsonResponse(response) {
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+      return payload;
+    }
+
+    function renderReport(payload) {
+      pageCount.textContent = payload.page_count ?? 0;
+      vectorCount.textContent = payload.vector_entity_count ?? 0;
+      textCount.textContent = payload.text_count ?? 0;
+      imageCount.textContent = payload.image_count ?? 0;
+      renderWarnings(payload.warnings || []);
+      logEl.textContent = JSON.stringify(payload, null, 2);
+    }
+
+    function renderWarnings(warnings) {
+      warningsEl.replaceChildren();
+      for (const warning of warnings) {
+        const item = document.createElement("div");
+        item.className = "warning";
+        item.textContent = warning;
+        warningsEl.appendChild(item);
+      }
+    }
+
+    function showError(message) {
+      setStatus("Error");
+      warningsEl.replaceChildren();
+      const item = document.createElement("div");
+      item.className = "warning error";
+      item.textContent = message;
+      warningsEl.appendChild(item);
+    }
+
+    function setBusy(isBusy, label = "Working") {
+      inspectButton.disabled = isBusy;
+      convertButton.disabled = isBusy;
+      if (isBusy) setStatus(label);
+    }
+
+    function setStatus(value) {
+      statusEl.textContent = value;
+    }
+
+    function downloadBlob(filename, blob) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function outputName(name) {
+      return name.replace(/\.pdf$/i, "") + ".dxf";
+    }
+
+    function formatBytes(value) {
+      if (value < 1024) return `${value} B`;
+      if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+      return `${(value / 1024 / 1024).toFixed(1)} MB`;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdf-to-dxf-service"
+version = "0.1.0"
+description = "Vector-first PDF to DXF conversion CLI and local HTTP service."
+requires-python = ">=3.10"
+dependencies = [
+  "pdfplumber>=0.10,<0.12"
+]
+
+[project.optional-dependencies]
+dev = [
+  "reportlab>=4.0,<5"
+]
+
+[project.scripts]
+pdf-to-dxf = "pdf_to_dxf.__main__:main"
+
+[tool.setuptools.package-data]
+pdf_to_dxf = ["static/*.html"]
