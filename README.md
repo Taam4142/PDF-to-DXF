@@ -73,6 +73,41 @@ docker build -t pdf-to-dxf-service .
 docker run --rm -p 8765:8765 pdf-to-dxf-service
 ```
 
+## Deploy To Vercel
+
+This repository includes a Vercel-compatible WSGI adapter:
+
+- `api/index.py`
+- `app.py`
+- `pdf_to_dxf/vercel_app.py`
+- `vercel.json`
+
+Deploy from GitHub:
+
+1. Push this repository to GitHub.
+2. In Vercel, choose **Add New Project**.
+3. Import the GitHub repository.
+4. Keep the default build settings.
+5. Deploy.
+
+Deploy with the Vercel CLI:
+
+```powershell
+npm install -g vercel
+vercel
+```
+
+The deployed app serves the same paths as local development:
+
+- `/`
+- `/health`
+- `/inspect`
+- `/convert/pdf-to-dxf`
+
+Vercel serverless deployments have request size and execution time limits. For
+large scanned PDFs, batch conversion, or long-running raster tracing, prefer the
+Docker image on a container host.
+
 ## HTTP API
 
 Health check:

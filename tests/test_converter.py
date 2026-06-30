@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from io import BytesIO
 import tempfile
 import threading
 import unittest
@@ -12,6 +13,7 @@ from reportlab.pdfgen import canvas
 from pdf_to_dxf import ConversionOptions, convert_pdf_bytes, convert_pdf_file, inspect_pdf_bytes
 from pdf_to_dxf.dxf_writer import clean_text
 from pdf_to_dxf.server import PdfToDxfHandler, options_from_query
+from pdf_to_dxf.vercel_app import app as vercel_app
 
 
 class PdfToDxfTests(unittest.TestCase):
@@ -68,7 +70,7 @@ class PdfToDxfTests(unittest.TestCase):
         self.assertEqual(report.text_count, 0)
 
     def test_dxf_text_uses_ascii_replacements(self) -> None:
-        dxf_text = clean_text("Temp -40°C >= 1MΩ 50μs")
+        dxf_text = clean_text("Temp -40\u00b0C >= 1M\u03a9 50\u03bcs")
 
         self.assertEqual(dxf_text, "Temp -40degC >= 1MOhm 50us")
 
@@ -115,6 +117,72 @@ class PdfToDxfTests(unittest.TestCase):
 
         self.assertIn("<title>PDF to DXF</title>", body)
         self.assertIn("Download DXF", body)
+
+    def test_vercel_wsgi_serves_ui(self) -> None:
+        status, headers, body = call_wsgi("GET", "/")
+
+        self.assertTrue(status.startswith("200 "))
+        self.assertIn("text/html", headers["Content-Type"])
+        self.assertIn(b"<title>PDF to DXF</title>", body)
+
+    def test_vercel_wsgi_inspects_pdf(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pdf_path = Path(tmpdir) / "sample.pdf"
+            self.make_pdf(pdf_path)
+            status, headers, body = call_wsgi(
+                "POST",
+                "/inspect",
+                body=pdf_path.read_bytes(),
+                headers={"HTTP_X_FILE_NAME": "sample.pdf"},
+            )
+
+        self.assertTrue(status.startswith("200 "))
+        self.assertIn("application/json", headers["Content-Type"])
+        self.assertIn(b'"vector_entity_count"', body)
+
+    def test_vercel_wsgi_converts_pdf(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pdf_path = Path(tmpdir) / "sample.pdf"
+            self.make_pdf(pdf_path)
+            status, headers, body = call_wsgi(
+                "POST",
+                "/convert/pdf-to-dxf",
+                body=pdf_path.read_bytes(),
+                query="pages=1",
+                headers={"HTTP_X_FILE_NAME": "sample.pdf"},
+            )
+
+        text = body.decode("utf-8")
+        self.assertTrue(status.startswith("200 "))
+        self.assertEqual(headers["Content-Type"], "application/dxf")
+        self.assertIn("AC1009", text)
+        self.assertIn("POLYLINE", text)
+        self.assertNotIn("LWPOLYLINE", text)
+
+
+def call_wsgi(
+    method: str,
+    path: str,
+    body: bytes = b"",
+    query: str = "",
+    headers: dict[str, str] | None = None,
+) -> tuple[str, dict[str, str], bytes]:
+    captured: dict[str, object] = {}
+
+    def start_response(status: str, response_headers: list[tuple[str, str]]) -> None:
+        captured["status"] = status
+        captured["headers"] = dict(response_headers)
+
+    environ = {
+        "REQUEST_METHOD": method,
+        "PATH_INFO": path,
+        "QUERY_STRING": query,
+        "CONTENT_LENGTH": str(len(body)),
+        "wsgi.input": BytesIO(body),
+    }
+    environ.update(headers or {})
+    response_body = b"".join(vercel_app(environ, start_response))
+    return str(captured["status"]), dict(captured["headers"]), response_body
 
 
 if __name__ == "__main__":
