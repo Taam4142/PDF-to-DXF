@@ -22,5 +22,8 @@ pdf-to-dxf = "pdf_to_dxf.__main__:main"
 [tool.vercel]
 entrypoint = "api.index:app"
 
+[tool.setuptools.packages.find]
+include = ["api", "pdf_to_dxf", "pdf_to_dxf.*"]
+
 [tool.setuptools.package-data]
 pdf_to_dxf = ["static/*.html"]
