@@ -21,6 +21,7 @@ as raster-heavy and are not traced in this first version.
 
 ## Planning Docs
 
+- [Project working process](docs/project-working-process.md)
 - [Native app risk and quality plan](docs/native-app-risk-quality-plan.md)
 
 ## Install
