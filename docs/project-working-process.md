@@ -6,6 +6,17 @@ This document records the way we are building this project together. It should
 guide future work so decisions, risks, tests, and next steps do not live only in
 chat history.
 
+## Codex Skill
+
+This process has also been installed as a local Codex skill:
+
+- Skill name: `project-working-process`
+- Explicit invocation: `$project-working-process`
+- Local path: `%USERPROFILE%\.codex\skills\project-working-process`
+
+Use the skill when continuing this project or when another project should follow
+the same plan, implement, risk-review, test, document, commit, and push loop.
+
 ## Core Loop
 
 1. Plan the next useful chunk of work.
