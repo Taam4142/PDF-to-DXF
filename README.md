@@ -19,6 +19,10 @@ as raster-heavy and are not traced in this first version.
   and warnings.
 - Test suite that generates a vector PDF fixture with `reportlab`.
 
+## Planning Docs
+
+- [Native app risk and quality plan](docs/native-app-risk-quality-plan.md)
+
 ## Install
 
 ```powershell
