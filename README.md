@@ -66,6 +66,32 @@ Then open:
 http://127.0.0.1:8765/
 ```
 
+## Windows App
+
+The project includes a Windows launcher that packages the local browser UI and
+conversion API into a single `.exe`. When opened, it starts the local service,
+opens the UI in your default browser, and keeps running until the console window
+is closed or stopped with `Ctrl+C`.
+
+Build the executable:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install pyinstaller
+.\.venv\Scripts\pyinstaller.exe .\windows_app.spec --noconfirm --clean
+```
+
+Run the built app:
+
+```powershell
+.\dist\PDF-to-DXF.exe
+```
+
+For automated smoke tests without opening a browser:
+
+```powershell
+.\dist\PDF-to-DXF.exe --no-browser
+```
+
 Run with Docker:
 
 ```powershell
