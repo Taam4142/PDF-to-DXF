@@ -96,6 +96,10 @@ For automated smoke tests:
 .\dist\PDF-to-DXF-Desktop.exe --self-test-convert .\examples\sample_vector.pdf .\examples\sample_from_desktop.dxf
 ```
 
+GitHub Actions also builds and smoke-tests the Windows desktop executable on
+every push to `main`. Download the `PDF-to-DXF-Desktop-windows` artifact from
+the **Windows Desktop Build** workflow run.
+
 The browser-based Windows launcher is still available through
 `windows_app.spec` when you specifically want the local web UI packaged as an
 `.exe`.
