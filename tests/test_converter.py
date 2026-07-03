@@ -11,6 +11,7 @@ from http.server import ThreadingHTTPServer
 from reportlab.pdfgen import canvas
 
 from pdf_to_dxf import ConversionOptions, convert_pdf_bytes, convert_pdf_file, inspect_pdf_bytes
+from pdf_to_dxf.converter import write_bytes_atomic
 from pdf_to_dxf.dxf_writer import clean_text
 from pdf_to_dxf.server import PdfToDxfHandler, options_from_query
 from pdf_to_dxf.vercel_app import app as vercel_app
@@ -68,6 +69,16 @@ class PdfToDxfTests(unittest.TestCase):
         self.assertIn("EOF", dxf_text)
         self.assertNotIn("PLC01", dxf_text)
         self.assertEqual(report.text_count, 0)
+
+    def test_atomic_write_replaces_existing_file_and_removes_temp(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dxf_path = Path(tmpdir) / "sample.dxf"
+            dxf_path.write_bytes(b"old")
+
+            write_bytes_atomic(dxf_path, b"new")
+
+            self.assertEqual(dxf_path.read_bytes(), b"new")
+            self.assertEqual(list(Path(tmpdir).glob(".sample.dxf.*.tmp")), [])
 
     def test_dxf_text_uses_ascii_replacements(self) -> None:
         dxf_text = clean_text("Temp -40\u00b0C >= 1M\u03a9 50\u03bcs")

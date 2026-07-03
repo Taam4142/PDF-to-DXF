@@ -72,6 +72,10 @@ http://127.0.0.1:8765/
 The project includes a native Windows desktop launcher. It opens as a normal
 Windows app with file picker, conversion options, inspect, and DXF export
 controls. It does not start a browser or depend on the local HTTP server.
+Exports run in a separate worker process, write DXF files atomically, and ask
+before replacing an existing `.dxf` file. App logs are written under
+`%LOCALAPPDATA%\PDF-to-DXF\logs\app.log`, with a temp-folder fallback if that
+location is unavailable.
 
 Build the executable:
 

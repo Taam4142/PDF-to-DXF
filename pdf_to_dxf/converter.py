@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -67,9 +68,29 @@ class ConversionReport:
 
 def convert_pdf_file(input_pdf: Path, output_dxf: Path, options: ConversionOptions | None = None) -> ConversionReport:
     report, dxf_bytes = convert_pdf_bytes(input_pdf.read_bytes(), source_name=input_pdf.name, options=options)
-    output_dxf.parent.mkdir(parents=True, exist_ok=True)
-    output_dxf.write_bytes(dxf_bytes)
+    write_bytes_atomic(output_dxf, dxf_bytes)
     return report
+
+
+def write_bytes_atomic(output_path: Path, data: bytes) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            prefix=f".{output_path.name}.",
+            suffix=".tmp",
+            dir=output_path.parent,
+            delete=False,
+        ) as temp_file:
+            temp_file.write(data)
+            temp_file.flush()
+            os.fsync(temp_file.fileno())
+            temp_path = Path(temp_file.name)
+        temp_path.replace(output_path)
+    finally:
+        if temp_path is not None and temp_path.exists():
+            temp_path.unlink(missing_ok=True)
 
 
 def convert_pdf_bytes(
