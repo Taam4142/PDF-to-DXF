@@ -8,7 +8,8 @@ from pathlib import Path
 from reportlab.pdfgen import canvas
 
 import windows_native_app as native
-from pdf_to_dxf import ConversionOptions
+from pdf_to_dxf import ConversionOptions, __version__
+from pdf_to_dxf.app_info import APP_EXECUTABLE_NAME, APP_VERSION
 
 
 class NativeAppHelperTests(unittest.TestCase):
@@ -38,6 +39,20 @@ class NativeAppHelperTests(unittest.TestCase):
         self.assertEqual(native.format_file_size(512), "512 bytes")
         self.assertEqual(native.format_file_size(1536), "1.5 KB")
         self.assertEqual(native.format_file_size(2 * 1024 * 1024), "2.0 MB")
+
+    def test_package_version_matches_app_version(self) -> None:
+        self.assertEqual(__version__, APP_VERSION)
+
+    def test_icon_asset_exists(self) -> None:
+        self.assertTrue((Path.cwd() / native.ICON_RESOURCE).is_file())
+
+    def test_about_text_includes_release_identity_and_diagnostics(self) -> None:
+        text = native.build_about_text(Path("C:/logs/app.log"))
+
+        self.assertIn(APP_VERSION, text)
+        self.assertIn(APP_EXECUTABLE_NAME, text)
+        self.assertIn(f"Log file: {Path('C:/logs/app.log')}", text)
+        self.assertIn("Scanned or image-only PDFs", text)
 
     def test_options_payload_round_trip(self) -> None:
         options = ConversionOptions(pages=(1, 3), unit="inch", scale=2.5, include_text=False, curve_segments=24)

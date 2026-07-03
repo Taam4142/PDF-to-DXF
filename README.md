@@ -80,7 +80,8 @@ controls. It does not start a browser or depend on the local HTTP server.
 Exports run in a separate worker process, write DXF files atomically, and ask
 before replacing an existing `.dxf` file. App logs are written under
 `%LOCALAPPDATA%\PDF-to-DXF\logs\app.log`, with a temp-folder fallback if that
-location is unavailable.
+location is unavailable. The desktop build includes an app icon, Windows file
+version metadata, and an About dialog with version and diagnostics details.
 
 Build the executable:
 

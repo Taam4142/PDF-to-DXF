@@ -18,14 +18,21 @@ from typing import Any, Callable
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
+from pdf_to_dxf.app_info import (
+    APP_DESCRIPTION,
+    APP_DIR_NAME,
+    APP_DISPLAY_NAME,
+    APP_EXECUTABLE_NAME,
+    APP_VERSION,
+)
 from pdf_to_dxf.converter import ConversionOptions, ConversionReport, convert_pdf_file, inspect_pdf_bytes
 
 
-APP_TITLE = "PDF to DXF"
-APP_DIR_NAME = "PDF-to-DXF"
+APP_TITLE = APP_DISPLAY_NAME
 MAX_PDF_BYTES = 50 * 1024 * 1024
 MAX_CURVE_SEGMENTS = 256
 WORKER_TIMEOUT_SECONDS = 300
+ICON_RESOURCE = Path("assets") / "app_icon.ico"
 LOGGER = logging.getLogger("pdf_to_dxf.native")
 WorkerResult = tuple[str, dict[str, Any] | None, str | None, str | None]
 
@@ -33,9 +40,10 @@ WorkerResult = tuple[str, dict[str, Any] | None, str | None, str | None]
 class PdfToDxfNativeApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title(APP_TITLE)
+        self.title(f"{APP_TITLE} {APP_VERSION}")
         self.geometry("900x680")
         self.minsize(780, 560)
+        self._apply_window_icon()
 
         self.pdf_path = tk.StringVar()
         self.output_path = tk.StringVar()
@@ -71,6 +79,14 @@ class PdfToDxfNativeApp(tk.Tk):
         style.configure("Status.TLabel", foreground="#42526e")
         style.configure("Primary.TButton", font=("Segoe UI", 10, "bold"))
 
+    def _apply_window_icon(self) -> None:
+        icon_path = resource_path(ICON_RESOURCE)
+        if icon_path.is_file():
+            try:
+                self.iconbitmap(str(icon_path))
+            except tk.TclError as error:
+                LOGGER.warning("Could not apply window icon %s: %s", icon_path, error)
+
     def _build_layout(self) -> None:
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
@@ -84,7 +100,8 @@ class PdfToDxfNativeApp(tk.Tk):
         header.grid(row=0, column=0, sticky="ew", pady=(0, 16))
         header.columnconfigure(0, weight=1)
         ttk.Label(header, text=APP_TITLE, style="Title.TLabel").grid(row=0, column=0, sticky="w")
-        ttk.Label(header, textvariable=self.status, style="Status.TLabel").grid(row=0, column=1, sticky="e")
+        ttk.Button(header, text="About", command=self.show_about).grid(row=0, column=1, sticky="e", padx=(0, 12))
+        ttk.Label(header, textvariable=self.status, style="Status.TLabel").grid(row=0, column=2, sticky="e")
 
         files = ttk.LabelFrame(root, text="Files", padding=12)
         files.grid(row=1, column=0, sticky="ew")
@@ -193,6 +210,9 @@ class PdfToDxfNativeApp(tk.Tk):
         )
         if path:
             self.output_path.set(path)
+
+    def show_about(self) -> None:
+        messagebox.showinfo(APP_TITLE, build_about_text(self.log_path))
 
     def inspect_pdf(self) -> None:
         try:
@@ -380,6 +400,28 @@ def configure_logging() -> Path:
 
     LOGGER.addHandler(logging.NullHandler())
     return Path(tempfile.gettempdir()) / APP_DIR_NAME / "logs" / "app.log"
+
+
+def resource_path(relative_path: Path) -> Path:
+    base_path = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    return base_path / relative_path
+
+
+def build_about_text(log_path: Path) -> str:
+    return "\n".join(
+        [
+            f"{APP_DISPLAY_NAME} {APP_VERSION}",
+            APP_DESCRIPTION,
+            "",
+            f"Executable: {APP_EXECUTABLE_NAME}.exe",
+            f"Log file: {log_path}",
+            f"Python: {sys.version.split()[0]}",
+            f"Tk: {tk.TkVersion}",
+            "",
+            "This converter works best with vector PDFs exported from CAD, drawing, or layout tools.",
+            "Scanned or image-only PDFs are reported but not traced into editable CAD geometry.",
+        ]
+    )
 
 
 def candidate_log_dirs() -> list[Path]:

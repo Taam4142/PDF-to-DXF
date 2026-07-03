@@ -28,26 +28,24 @@ then quality improvements and release polish.
 | --- | --- | --- | --- |
 | Partial | Native app tests | Helper, validation, worker, and packaged smoke paths are tested. | Add UI workflow tests or a documented manual QA checklist. |
 | Done | Windows CI build | GitHub Actions builds, tests, smoke-tests, and uploads the desktop `.exe`. | Watch first runs and tune if dependency/package behavior changes. |
-| Todo | Version info, icon, installer | Current `.exe` is functional but unsigned and not installer-packaged. | Add app icon, Windows version resource, and an installer target. |
+| Partial | Version info, icon, installer | App metadata, `.exe` icon, Windows version resource, and About diagnostics are implemented. The app is still not installer-packaged. | Add an installer target. |
 | Todo | Code signing | SmartScreen can warn because the `.exe` is unsigned. | Decide certificate strategy before public distribution. |
 | Partial | User-facing warnings | Conversion report already includes raster/no-vector warnings. | Promote important warnings into a visible warning panel. |
 | Todo | Preview and validation | No PDF or DXF preview is available in the native UI. | Add PDF page preview first, then optional DXF geometry preview. |
 
 ## Recommended Next Work Order
 
-1. Add release metadata: app icon, file version, product name, and company/name
-   placeholders in the PyInstaller build.
-2. Add an installer build, likely Inno Setup or WiX, so users install from a
+1. Add an installer build, likely Inno Setup or WiX, so users install from a
    normal setup wizard instead of running a loose `.exe`.
-3. Add page/entity-count safety estimates before conversion starts.
-4. Add a warning summary area in the native app so raster-heavy or image-only
+2. Add page/entity-count safety estimates before conversion starts.
+3. Add a warning summary area in the native app so raster-heavy or image-only
    PDFs are impossible to miss.
-5. Add a manual QA checklist or UI automation path for selecting a PDF,
+4. Add a manual QA checklist or UI automation path for selecting a PDF,
    inspecting it, exporting it, and confirming overwrite behavior.
-6. Create a GitHub Release workflow that attaches the verified Windows artifact
+5. Create a GitHub Release workflow that attaches the verified Windows artifact
    to a versioned release.
-7. Plan code signing before sharing the app outside trusted internal users.
-8. Add preview support after the export workflow is stable.
+6. Plan code signing before sharing the app outside trusted internal users.
+7. Add preview support after the export workflow is stable.
 
 ## Current Verification Coverage
 
