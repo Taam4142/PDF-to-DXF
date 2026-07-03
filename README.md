@@ -11,6 +11,7 @@ as raster-heavy and are not traced in this first version.
 - CLI converter: PDF file in, DXF file out.
 - Local HTTP API with `/health`, `/inspect`, and `/convert/pdf-to-dxf`.
 - Local browser UI served at `/`.
+- Native Windows desktop app with file picker, inspect, and export controls.
 - Lightweight DXF writer with no CAD dependency required.
 - PDF vector extraction using `pdfplumber`.
 - Multi-page support with horizontal page offsets.
@@ -66,31 +67,34 @@ Then open:
 http://127.0.0.1:8765/
 ```
 
-## Windows App
+## Native Windows Desktop App
 
-The project includes a Windows launcher that packages the local browser UI and
-conversion API into a single `.exe`. When opened, it starts the local service,
-opens the UI in your default browser, and keeps running until the console window
-is closed or stopped with `Ctrl+C`.
+The project includes a native Windows desktop launcher. It opens as a normal
+Windows app with file picker, conversion options, inspect, and DXF export
+controls. It does not start a browser or depend on the local HTTP server.
 
 Build the executable:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install pyinstaller
-.\.venv\Scripts\pyinstaller.exe .\windows_app.spec --noconfirm --clean
+.\.venv\Scripts\pyinstaller.exe .\windows_native_app.spec --noconfirm --clean
 ```
 
 Run the built app:
 
 ```powershell
-.\dist\PDF-to-DXF.exe
+.\dist\PDF-to-DXF-Desktop.exe
 ```
 
-For automated smoke tests without opening a browser:
+For automated smoke tests:
 
 ```powershell
-.\dist\PDF-to-DXF.exe --no-browser
+.\dist\PDF-to-DXF-Desktop.exe --self-test-convert .\examples\sample_vector.pdf .\examples\sample_from_desktop.dxf
 ```
+
+The browser-based Windows launcher is still available through
+`windows_app.spec` when you specifically want the local web UI packaged as an
+`.exe`.
 
 Run with Docker:
 
