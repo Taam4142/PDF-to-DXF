@@ -87,24 +87,39 @@ Build the executable:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install pyinstaller
-.\.venv\Scripts\pyinstaller.exe .\windows_native_app.spec --noconfirm --clean
+.\.venv\Scripts\pyinstaller.exe .\windows_native_app.spec --noconfirm --clean --distpath dist\windows-native-app --workpath build\pyinstaller-native
 ```
 
 Run the built app:
 
 ```powershell
-.\dist\PDF-to-DXF-Desktop.exe
+.\dist\windows-native-app\PDF-to-DXF-Desktop.exe
 ```
 
 For automated smoke tests:
 
 ```powershell
-.\dist\PDF-to-DXF-Desktop.exe --self-test-convert .\examples\sample_vector.pdf .\examples\sample_from_desktop.dxf
+.\dist\windows-native-app\PDF-to-DXF-Desktop.exe --self-test-convert .\examples\sample_vector.pdf .\examples\sample_from_desktop.dxf
+```
+
+Build the Windows installer after the executable has been built:
+
+```powershell
+choco install innosetup -y
+powershell -ExecutionPolicy Bypass -File .\scripts\build_windows_installer.ps1
+```
+
+The installer is written to:
+
+```text
+dist\installer\PDF-to-DXF-Desktop-Setup-0.1.0.exe
 ```
 
 GitHub Actions also builds and smoke-tests the Windows desktop executable on
-every push to `main`. Download the `PDF-to-DXF-Desktop-windows` artifact from
-the **Windows Desktop Build** workflow run.
+every push to `main`, then packages it into an Inno Setup installer. Download
+the `PDF-to-DXF-Desktop-installer-windows` artifact from the **Windows Desktop
+Build** workflow run for normal installation, or `PDF-to-DXF-Desktop-windows`
+when you specifically want the raw executable.
 
 The browser-based Windows launcher is still available through
 `windows_app.spec` when you specifically want the local web UI packaged as an
