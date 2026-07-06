@@ -43,6 +43,43 @@ class NativeAppHelperTests(unittest.TestCase):
     def test_format_count(self) -> None:
         self.assertEqual(native.format_count(1234567), "1,234,567")
 
+    def test_build_warning_summary_reports_no_warnings(self) -> None:
+        has_warnings, summary = native.build_warning_summary({"warnings": []})
+
+        self.assertFalse(has_warnings)
+        self.assertEqual(summary, native.NO_WARNINGS_TEXT)
+
+    def test_build_warning_summary_collects_and_deduplicates_report_warnings(self) -> None:
+        has_warnings, summary = native.build_warning_summary(
+            {
+                "warnings": ["Page 1: raster image skipped", "No vector geometry was found."],
+                "_preflight": {"warnings": ["Raster images will be skipped."]},
+                "pages": [
+                    {"page_number": 1, "warnings": ["raster image skipped"]},
+                    {"page_number": 2, "warnings": ["  clipped curve   was skipped  "]},
+                ],
+            }
+        )
+
+        self.assertTrue(has_warnings)
+        self.assertIn("4 warnings:", summary)
+        self.assertEqual(summary.count("Page 1: raster image skipped"), 1)
+        self.assertIn("No vector geometry was found.", summary)
+        self.assertIn("Raster images will be skipped.", summary)
+        self.assertIn("Page 2: clipped curve was skipped", summary)
+
+    def test_build_warning_summary_truncates_long_warning_lists(self) -> None:
+        has_warnings, summary = native.build_warning_summary(
+            {"warnings": [f"warning {index}" for index in range(1, 8)]},
+            max_items=3,
+        )
+
+        self.assertTrue(has_warnings)
+        self.assertIn("7 warnings:", summary)
+        self.assertIn("warning 1", summary)
+        self.assertNotIn("warning 4", summary)
+        self.assertIn("4 more warnings in the report.", summary)
+
     def test_package_version_matches_app_version(self) -> None:
         self.assertEqual(__version__, APP_VERSION)
 

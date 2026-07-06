@@ -30,24 +30,23 @@ then quality improvements and release polish.
 | Done | Windows CI build | GitHub Actions builds, tests, smoke-tests, and uploads the desktop `.exe` plus installer artifact. | Watch first runs and tune if dependency/package behavior changes. |
 | Done | Version info, icon, installer | App metadata, `.exe` icon, Windows version resource, About diagnostics, and Inno Setup installer packaging are implemented. | Add code signing before public distribution. |
 | Todo | Code signing | SmartScreen can warn because the `.exe` is unsigned. | Decide certificate strategy before public distribution. |
-| Partial | User-facing warnings | Conversion report already includes raster/no-vector warnings. | Promote important warnings into a visible warning panel. |
+| Done | User-facing warnings | Native inspect/export results show a visible warning summary above the raw JSON report, including raster-heavy and image-only cases. | Add manual QA coverage for warning visibility. |
 | Todo | Preview and validation | No PDF or DXF preview is available in the native UI. | Add PDF page preview first, then optional DXF geometry preview. |
 
 ## Recommended Next Work Order
 
-1. Add a warning summary area in the native app so raster-heavy or image-only
-   PDFs are impossible to miss.
-2. Add a manual QA checklist or UI automation path for selecting a PDF,
+1. Add a manual QA checklist or UI automation path for selecting a PDF,
    inspecting it, exporting it, and confirming overwrite behavior.
-3. Create a GitHub Release workflow that attaches the verified Windows artifact
+2. Create a GitHub Release workflow that attaches the verified Windows artifact
    to a versioned release.
-4. Plan code signing before sharing the app outside trusted internal users.
-5. Add preview support after the export workflow is stable.
+3. Plan code signing before sharing the app outside trusted internal users.
+4. Add preview support after the export workflow is stable.
 
 ## Current Verification Coverage
 
 - Unit tests: `python -m unittest discover -s tests`
-- Native helper, preflight, and worker tests: `tests/test_windows_native_app.py`
+- Native helper, warning summary, preflight, and worker tests:
+  `tests/test_windows_native_app.py`
 - Packaged app smoke test: `scripts/smoke_native_app.py`
 - Installer asset validation: `scripts/validate_installer_assets.py`
 - CI workflow: `.github/workflows/windows-desktop.yml`

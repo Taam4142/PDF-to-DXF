@@ -84,7 +84,9 @@ location is unavailable. The desktop build includes an app icon, Windows file
 version metadata, and an About dialog with version and diagnostics details.
 Before export starts, the app preflights selected page count, source vector
 entities, estimated DXF entities, and estimated curve vertices so unusually
-large jobs fail early with guidance instead of hanging deep in conversion.
+large jobs fail early with guidance instead of hanging deep in conversion. A
+visible warning summary highlights raster-heavy, image-only, or otherwise
+limited conversions above the raw JSON report.
 
 Build the executable:
 

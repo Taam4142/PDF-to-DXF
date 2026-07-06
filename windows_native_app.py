@@ -45,6 +45,7 @@ MAX_ESTIMATED_CURVE_VERTICES = 500_000
 MAX_CURVE_SEGMENTS = 256
 WORKER_TIMEOUT_SECONDS = 300
 ICON_RESOURCE = Path("assets") / "app_icon.ico"
+NO_WARNINGS_TEXT = "No warnings reported."
 LOGGER = logging.getLogger("pdf_to_dxf.native")
 WorkerResult = tuple[str, dict[str, Any] | None, str | None, str | None]
 
@@ -89,6 +90,7 @@ class PdfToDxfNativeApp(tk.Tk):
             "text": tk.StringVar(value="-"),
             "images": tk.StringVar(value="-"),
         }
+        self.warning_summary = tk.StringVar(value=NO_WARNINGS_TEXT)
         self.log_path = configure_logging()
         LOGGER.info("Native app started.")
 
@@ -175,7 +177,7 @@ class PdfToDxfNativeApp(tk.Tk):
         body = ttk.Frame(root)
         body.grid(row=4, column=0, sticky="nsew")
         body.columnconfigure(0, weight=1)
-        body.rowconfigure(1, weight=1)
+        body.rowconfigure(2, weight=1)
 
         metrics = ttk.Frame(body)
         metrics.grid(row=0, column=0, sticky="ew", pady=(0, 12))
@@ -186,8 +188,24 @@ class PdfToDxfNativeApp(tk.Tk):
         self._add_metric(metrics, 2, "Text", self.metric_vars["text"])
         self._add_metric(metrics, 3, "Images", self.metric_vars["images"])
 
+        warning_frame = ttk.LabelFrame(body, text="Warnings", padding=8)
+        warning_frame.grid(row=1, column=0, sticky="ew", pady=(0, 12))
+        warning_frame.columnconfigure(0, weight=1)
+        self.warning_label = ttk.Label(
+            warning_frame,
+            textvariable=self.warning_summary,
+            wraplength=760,
+            justify="left",
+            foreground="#42526e",
+        )
+        self.warning_label.grid(row=0, column=0, sticky="ew")
+        warning_frame.bind(
+            "<Configure>",
+            lambda event: self.warning_label.configure(wraplength=max(320, event.width - 24)),
+        )
+
         report_frame = ttk.LabelFrame(body, text="Report", padding=8)
-        report_frame.grid(row=1, column=0, sticky="nsew")
+        report_frame.grid(row=2, column=0, sticky="nsew")
         report_frame.columnconfigure(0, weight=1)
         report_frame.rowconfigure(0, weight=1)
         self.report_text = scrolledtext.ScrolledText(report_frame, height=14, wrap="none", font=("Consolas", 9))
@@ -316,6 +334,7 @@ class PdfToDxfNativeApp(tk.Tk):
                     self.clipboard_append(error_detail)
             else:
                 LOGGER.warning("%s stopped: %s", kind, error_message)
+                self._set_warning_summary(error_message, has_warnings=True)
                 self._write_report(error_message)
                 messagebox.showwarning(APP_TITLE, error_message)
             return
@@ -348,12 +367,19 @@ class PdfToDxfNativeApp(tk.Tk):
         self.metric_vars["text"].set(str(report.get("text_count", "-")))
         self.metric_vars["images"].set(str(report.get("image_count", "-")))
         clean_report = {key: value for key, value in report.items() if not key.startswith("_")}
+        has_warnings, warning_summary = build_warning_summary(report)
+        self._set_warning_summary(warning_summary, has_warnings=has_warnings)
         self._write_report(json.dumps(clean_report, indent=2, ensure_ascii=False))
 
     def _clear_report(self) -> None:
         for variable in self.metric_vars.values():
             variable.set("-")
+        self._set_warning_summary(NO_WARNINGS_TEXT, has_warnings=False)
         self._write_report("")
+
+    def _set_warning_summary(self, text: str, has_warnings: bool) -> None:
+        self.warning_summary.set(text)
+        self.warning_label.configure(foreground="#8a4b00" if has_warnings else "#42526e")
 
     def _write_report(self, text: str) -> None:
         self.report_text.configure(state="normal")
@@ -413,6 +439,7 @@ class PdfToDxfNativeApp(tk.Tk):
     def _show_validation_error(self, error: ValueError) -> None:
         self.status.set("Ready")
         LOGGER.warning("Validation failed: %s", error)
+        self._set_warning_summary(str(error), has_warnings=True)
         messagebox.showwarning(APP_TITLE, str(error))
 
 
@@ -624,6 +651,75 @@ def build_workload_limit_message(errors: list[str], estimate: WorkloadEstimate) 
             "Try selecting fewer pages, lowering curve segments, or splitting the PDF before export.",
         ]
     )
+
+
+def build_warning_summary(report: dict[str, Any], max_items: int = 5) -> tuple[bool, str]:
+    warnings = collect_report_warnings(report)
+    if not warnings:
+        return False, NO_WARNINGS_TEXT
+
+    visible = warnings[:max_items]
+    hidden_count = max(0, len(warnings) - len(visible))
+    lines = [f"{format_count(len(warnings))} {pluralize(len(warnings), 'warning')}:"]
+    lines.extend(f"- {warning}" for warning in visible)
+    if hidden_count:
+        lines.append(f"- {format_count(hidden_count)} more {pluralize(hidden_count, 'warning')} in the report.")
+    return True, "\n".join(lines)
+
+
+def collect_report_warnings(report: dict[str, Any]) -> list[str]:
+    warnings: list[str] = []
+    seen: set[str] = set()
+
+    def append_warning(raw: Any, prefix: str | None = None) -> None:
+        text = normalize_warning_text(raw)
+        if not text:
+            return
+        if prefix and f"{prefix}: {text}" in seen:
+            return
+        if prefix:
+            text = f"{prefix}: {text}"
+        if text in seen:
+            return
+        seen.add(text)
+        warnings.append(text)
+
+    for warning in iter_warning_values(report.get("warnings")):
+        append_warning(warning)
+
+    preflight = report.get("_preflight")
+    if isinstance(preflight, dict):
+        for warning in iter_warning_values(preflight.get("warnings")):
+            append_warning(warning)
+
+    pages = report.get("pages")
+    if isinstance(pages, list):
+        for page in pages:
+            if not isinstance(page, dict):
+                continue
+            page_number = page.get("page_number")
+            prefix = f"Page {page_number}" if page_number else None
+            for warning in iter_warning_values(page.get("warnings")):
+                append_warning(warning, prefix=prefix)
+
+    return warnings
+
+
+def iter_warning_values(raw: Any) -> Iterable[Any]:
+    if isinstance(raw, list):
+        yield from raw
+    elif isinstance(raw, str):
+        yield raw
+
+
+def normalize_warning_text(raw: Any) -> str:
+    if not isinstance(raw, str):
+        return ""
+    return " ".join(raw.split())
+
+
+def pluralize(count: int, singular: str) -> str:
+    return singular if count == 1 else f"{singular}s"
 
 
 def format_count(value: int) -> str:
