@@ -22,6 +22,7 @@ as raster-heavy and are not traced in this first version.
 ## Planning Docs
 
 - [Project working process](docs/project-working-process.md)
+- [Native app manual QA](docs/native-app-manual-qa.md)
 - [Native app risk and quality plan](docs/native-app-risk-quality-plan.md)
 
 ## Install
@@ -241,6 +242,12 @@ Generate a sample vector PDF:
 
 ```powershell
 .\.venv\Scripts\python.exe examples\make_sample_pdf.py examples\sample_vector.pdf
+```
+
+Generate native app manual QA fixtures:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\make_native_qa_fixtures.py --output-dir out\native-qa
 ```
 
 Run tests:

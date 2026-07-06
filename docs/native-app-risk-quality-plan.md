@@ -26,7 +26,7 @@ then quality improvements and release polish.
 
 | Status | Item | Current State | Next Action |
 | --- | --- | --- | --- |
-| Partial | Native app tests | Helper, validation, worker, and packaged smoke paths are tested. | Add UI workflow tests or a documented manual QA checklist. |
+| Partial | Native app tests | Helper, validation, warning summary, preflight, worker, packaged smoke paths, QA fixture generation, and a manual QA checklist are covered. | Add UI automation only if future native UI changes become frequent. |
 | Done | Windows CI build | GitHub Actions builds, tests, smoke-tests, and uploads the desktop `.exe` plus installer artifact. | Watch first runs and tune if dependency/package behavior changes. |
 | Done | Version info, icon, installer | App metadata, `.exe` icon, Windows version resource, About diagnostics, and Inno Setup installer packaging are implemented. | Add code signing before public distribution. |
 | Todo | Code signing | SmartScreen can warn because the `.exe` is unsigned. | Decide certificate strategy before public distribution. |
@@ -35,18 +35,18 @@ then quality improvements and release polish.
 
 ## Recommended Next Work Order
 
-1. Add a manual QA checklist or UI automation path for selecting a PDF,
-   inspecting it, exporting it, and confirming overwrite behavior.
-2. Create a GitHub Release workflow that attaches the verified Windows artifact
+1. Create a GitHub Release workflow that attaches the verified Windows artifact
    to a versioned release.
-3. Plan code signing before sharing the app outside trusted internal users.
-4. Add preview support after the export workflow is stable.
+2. Plan code signing before sharing the app outside trusted internal users.
+3. Add preview support after the export workflow is stable.
 
 ## Current Verification Coverage
 
 - Unit tests: `python -m unittest discover -s tests`
 - Native helper, warning summary, preflight, and worker tests:
   `tests/test_windows_native_app.py`
+- Native QA fixtures: `scripts/make_native_qa_fixtures.py`
+- Manual native app checklist: `docs/native-app-manual-qa.md`
 - Packaged app smoke test: `scripts/smoke_native_app.py`
 - Installer asset validation: `scripts/validate_installer_assets.py`
 - CI workflow: `.github/workflows/windows-desktop.yml`
