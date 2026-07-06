@@ -1,0 +1,139 @@
+name: Windows Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without the leading v. Must match APP_VERSION."
+        required: true
+        type: string
+      draft:
+        description: "Create the release as a draft."
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release-native-windows-app:
+    name: Release native Windows app
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev]" pyinstaller
+
+      - name: Resolve release version
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $requestedVersion = "${{ inputs.version }}"
+            python scripts\validate_release_version.py --version $requestedVersion
+          } else {
+            $tagName = "${{ github.ref_name }}"
+            python scripts\validate_release_version.py --tag $tagName
+          }
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          $appVersion = (python -c "from pdf_to_dxf.app_info import APP_VERSION; print(APP_VERSION)").Trim()
+          $releaseTag = "v$appVersion"
+          "APP_VERSION=$appVersion" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_TAG=$releaseTag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Run tests
+        run: python -m unittest discover -s tests
+
+      - name: Build native desktop executable
+        run: |
+          pyinstaller windows_native_app.spec --noconfirm --clean --distpath dist/windows-native-app --workpath build/pyinstaller-native
+
+      - name: Smoke test packaged executable
+        run: |
+          python scripts/smoke_native_app.py --exe dist/windows-native-app/PDF-to-DXF-Desktop.exe --work-dir out/native-smoke
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_windows_installer.ps1 -Python python
+
+      - name: Prepare release assets
+        shell: pwsh
+        run: |
+          $releaseDir = "dist\release"
+          New-Item -ItemType Directory -Force $releaseDir
+
+          $portableExe = "dist\windows-native-app\PDF-to-DXF-Desktop.exe"
+          $portableReleaseExe = "$releaseDir\PDF-to-DXF-Desktop-$env:APP_VERSION.exe"
+          Copy-Item -LiteralPath $portableExe -Destination $portableReleaseExe
+
+          $installer = "dist\installer\PDF-to-DXF-Desktop-Setup-$env:APP_VERSION.exe"
+          $installerReleaseExe = "$releaseDir\PDF-to-DXF-Desktop-Setup-$env:APP_VERSION.exe"
+          Copy-Item -LiteralPath $installer -Destination $installerReleaseExe
+
+          @"
+          PDF to DXF $env:APP_VERSION
+
+          Assets:
+          - PDF-to-DXF-Desktop-$env:APP_VERSION.exe: portable native Windows app
+          - PDF-to-DXF-Desktop-Setup-$env:APP_VERSION.exe: Windows installer
+
+          Notes:
+          - This is a vector-first PDF to DXF converter.
+          - Scanned or image-only PDFs are reported but not traced into editable CAD geometry.
+          - The Windows app and installer are not code-signed yet, so SmartScreen warnings are expected.
+          "@ | Set-Content -LiteralPath "$releaseDir\release-notes.md" -Encoding utf8
+
+      - name: Upload release build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PDF-to-DXF-Desktop-release-windows
+          path: dist/release/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $draftArgs = @()
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ inputs.draft }}" -eq "true") {
+            $draftArgs += "--draft"
+          }
+
+          $verifyTagArgs = @()
+          if ("${{ github.event_name }}" -ne "workflow_dispatch") {
+            $verifyTagArgs += "--verify-tag"
+          }
+
+          gh release create $env:RELEASE_TAG `
+            "dist\release\PDF-to-DXF-Desktop-$env:APP_VERSION.exe" `
+            "dist\release\PDF-to-DXF-Desktop-Setup-$env:APP_VERSION.exe" `
+            --repo "${{ github.repository }}" `
+            --target "${{ github.sha }}" `
+            --title "PDF to DXF $env:APP_VERSION" `
+            --notes-file "dist\release\release-notes.md" `
+            @draftArgs `
+            @verifyTagArgs
