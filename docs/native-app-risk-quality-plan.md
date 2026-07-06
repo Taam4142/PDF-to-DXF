@@ -29,15 +29,18 @@ then quality improvements and release polish.
 | Partial | Native app tests | Helper, validation, warning summary, preflight, worker, packaged smoke paths, QA fixture generation, and a manual QA checklist are covered. | Add UI automation only if future native UI changes become frequent. |
 | Done | Windows CI build | GitHub Actions builds, tests, smoke-tests, and uploads the desktop `.exe` plus installer artifact. | Watch first runs and tune if dependency/package behavior changes. |
 | Done | Version info, icon, installer | App metadata, `.exe` icon, Windows version resource, About diagnostics, and Inno Setup installer packaging are implemented. | Add code signing before public distribution. |
-| Done | GitHub Release workflow | Tag or manual workflow releases rebuild, test, smoke-test, package, and attach the portable `.exe` plus installer to a versioned release. | Use draft releases until code signing is decided. |
-| Todo | Code signing | SmartScreen can warn because the `.exe` is unsigned. | Decide certificate strategy before public distribution. |
+| Done | GitHub Release workflow | Tag or manual workflow releases rebuild, test, smoke-test, package, and attach the portable `.exe` plus installer to a versioned release. | Use draft releases until code signing is implemented. |
+| Partial | Code signing | A signing plan and CI signing-status gate are documented. Releases remain unsigned and SmartScreen warnings are expected. | Choose provider, configure credentials, add signing and verification steps. |
 | Done | User-facing warnings | Native inspect/export results show a visible warning summary above the raw JSON report, including raster-heavy and image-only cases. | Add manual QA coverage for warning visibility. |
 | Todo | Preview and validation | No PDF or DXF preview is available in the native UI. | Add PDF page preview first, then optional DXF geometry preview. |
 
 ## Recommended Next Work Order
 
-1. Plan code signing before sharing the app outside trusted internal users.
-2. Add preview support after the export workflow is stable.
+1. Choose code-signing provider and implement signing/verification in the
+   release workflow.
+2. Create the first draft release after confirming unsigned/signed release
+   expectations.
+3. Add preview support after the export workflow is stable.
 
 ## Current Verification Coverage
 
@@ -51,6 +54,8 @@ then quality improvements and release polish.
 - CI workflow: `.github/workflows/windows-desktop.yml`
 - Release workflow: `.github/workflows/windows-release.yml`
 - Release version validation: `scripts/validate_release_version.py`
+- Code-signing plan: `docs/code-signing-plan.md`
+- Signing configuration validation: `scripts/validate_signing_config.py`
 
 ## Important Product Limits
 

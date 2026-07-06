@@ -78,11 +78,29 @@ jobs:
       - name: Build installer
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_windows_installer.ps1 -Python python
 
+      - name: Validate signing configuration
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_MODE: ${{ vars.WINDOWS_SIGNING_MODE }}
+          WINDOWS_SIGNING_CERT_SHA1: ${{ secrets.WINDOWS_SIGNING_CERT_SHA1 }}
+          WINDOWS_SIGNING_PFX_B64: ${{ secrets.WINDOWS_SIGNING_PFX_B64 }}
+          WINDOWS_SIGNING_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
+          AZURE_ARTIFACT_SIGNING_ENDPOINT: ${{ vars.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
+          AZURE_ARTIFACT_SIGNING_ACCOUNT: ${{ vars.AZURE_ARTIFACT_SIGNING_ACCOUNT }}
+          AZURE_ARTIFACT_SIGNING_CERT_PROFILE: ${{ vars.AZURE_ARTIFACT_SIGNING_CERT_PROFILE }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: |
+          New-Item -ItemType Directory -Force dist\release
+          python scripts\validate_signing_config.py --output dist\release\signing-status.json
+
       - name: Prepare release assets
         shell: pwsh
         run: |
           $releaseDir = "dist\release"
           New-Item -ItemType Directory -Force $releaseDir
+          $signingStatus = Get-Content -Raw -LiteralPath "$releaseDir\signing-status.json" | ConvertFrom-Json
 
           $portableExe = "dist\windows-native-app\PDF-to-DXF-Desktop.exe"
           $portableReleaseExe = "$releaseDir\PDF-to-DXF-Desktop-$env:APP_VERSION.exe"
@@ -102,7 +120,7 @@ jobs:
           Notes:
           - This is a vector-first PDF to DXF converter.
           - Scanned or image-only PDFs are reported but not traced into editable CAD geometry.
-          - The Windows app and installer are not code-signed yet, so SmartScreen warnings are expected.
+          - Signing status: $($signingStatus.summary)
           "@ | Set-Content -LiteralPath "$releaseDir\release-notes.md" -Encoding utf8
 
       - name: Upload release build artifacts

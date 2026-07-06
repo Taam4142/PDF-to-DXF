@@ -12,8 +12,10 @@ the installer, then attaches both Windows artifacts to a GitHub Release.
 - The tag or manual workflow version must match `APP_VERSION`.
 - Manual workflow releases are drafts by default.
 - Tag-push releases are published immediately.
-- The Windows app and installer are not code-signed yet, so SmartScreen
-  warnings are expected.
+- The Windows app and installer are not code-signed yet. The workflow records
+  unsigned status in release notes, and SmartScreen warnings are expected.
+- Do not set `WINDOWS_SIGNING_MODE` to a signed mode until the matching signing
+  step has been implemented.
 
 ## Before Release
 
@@ -34,6 +36,7 @@ the installer, then attaches both Windows artifacts to a GitHub Release.
    Then follow `docs\native-app-manual-qa.md`.
 
 5. Commit and push the version update.
+6. Confirm the current signing decision in `docs\code-signing-plan.md`.
 
 ## Draft Release From GitHub UI
 
@@ -48,6 +51,9 @@ The workflow creates a release tag named `v<version>` and attaches:
 
 - `PDF-to-DXF-Desktop-<version>.exe`
 - `PDF-to-DXF-Desktop-Setup-<version>.exe`
+
+Until signing is implemented, keep the draft release as a trusted test artifact
+or mark the release notes clearly as unsigned.
 
 ## Published Release From Tag
 
@@ -67,5 +73,7 @@ GitHub Release with the Windows artifacts attached.
   so all three agree.
 - If a release already exists, delete or edit the existing draft/release in
   GitHub before rerunning.
+- If signing validation fails, unset `WINDOWS_SIGNING_MODE` or implement the
+  matching signing step before releasing.
 - If the packaged smoke test fails, do not publish the release; fix the app and
   create a new commit/tag.

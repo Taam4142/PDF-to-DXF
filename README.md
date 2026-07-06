@@ -24,6 +24,7 @@ as raster-heavy and are not traced in this first version.
 - [Project working process](docs/project-working-process.md)
 - [Native app manual QA](docs/native-app-manual-qa.md)
 - [Native app risk and quality plan](docs/native-app-risk-quality-plan.md)
+- [Code signing plan](docs/code-signing-plan.md)
 - [Release process](docs/release-process.md)
 
 ## Install
@@ -131,7 +132,8 @@ when you specifically want the raw executable.
 Versioned releases are published by the **Windows Release** workflow. It checks
 that the requested version matches app metadata, rebuilds and smoke-tests the
 desktop app, builds the installer, then attaches both Windows artifacts to the
-GitHub Release.
+GitHub Release. Releases are currently unsigned by design; see the code-signing
+plan before publishing broadly.
 
 The browser-based Windows launcher is still available through
 `windows_app.spec` when you specifically want the local web UI packaged as an
