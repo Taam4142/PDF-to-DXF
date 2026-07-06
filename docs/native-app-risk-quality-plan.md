@@ -20,7 +20,7 @@ then quality improvements and release polish.
 | Done | Atomic DXF writes | Converter writes to a temp file and replaces the final DXF only after success. | Keep unit test coverage. |
 | Done | Persistent error logs | Native app writes logs to `%LOCALAPPDATA%\PDF-to-DXF\logs\app.log` with a temp fallback. | Add log path to an About/Help dialog later. |
 | Done | Worker process isolation | Native export runs through a worker process with a 300-second timeout. | Add Cancel button if long conversions become common. |
-| Partial | Input limits | The app limits PDF size and curve segments. | Add max page count, entity-count estimates, and clearer "too large" guidance. |
+| Done | Input limits | The app limits PDF size, selected page count, curve segments, estimated source/vector load, estimated DXF entities, and estimated curve vertices before conversion starts. | Tune thresholds if real user PDFs need more room. |
 
 ## Quality Improvements
 
@@ -35,20 +35,19 @@ then quality improvements and release polish.
 
 ## Recommended Next Work Order
 
-1. Add page/entity-count safety estimates before conversion starts.
-2. Add a warning summary area in the native app so raster-heavy or image-only
+1. Add a warning summary area in the native app so raster-heavy or image-only
    PDFs are impossible to miss.
-3. Add a manual QA checklist or UI automation path for selecting a PDF,
+2. Add a manual QA checklist or UI automation path for selecting a PDF,
    inspecting it, exporting it, and confirming overwrite behavior.
-4. Create a GitHub Release workflow that attaches the verified Windows artifact
+3. Create a GitHub Release workflow that attaches the verified Windows artifact
    to a versioned release.
-5. Plan code signing before sharing the app outside trusted internal users.
-6. Add preview support after the export workflow is stable.
+4. Plan code signing before sharing the app outside trusted internal users.
+5. Add preview support after the export workflow is stable.
 
 ## Current Verification Coverage
 
 - Unit tests: `python -m unittest discover -s tests`
-- Native helper and worker tests: `tests/test_windows_native_app.py`
+- Native helper, preflight, and worker tests: `tests/test_windows_native_app.py`
 - Packaged app smoke test: `scripts/smoke_native_app.py`
 - Installer asset validation: `scripts/validate_installer_assets.py`
 - CI workflow: `.github/workflows/windows-desktop.yml`

@@ -40,6 +40,9 @@ class NativeAppHelperTests(unittest.TestCase):
         self.assertEqual(native.format_file_size(1536), "1.5 KB")
         self.assertEqual(native.format_file_size(2 * 1024 * 1024), "2.0 MB")
 
+    def test_format_count(self) -> None:
+        self.assertEqual(native.format_count(1234567), "1,234,567")
+
     def test_package_version_matches_app_version(self) -> None:
         self.assertEqual(__version__, APP_VERSION)
 
@@ -64,6 +67,60 @@ class NativeAppHelperTests(unittest.TestCase):
         self.assertEqual(rebuilt.scale, 2.5)
         self.assertFalse(rebuilt.include_text)
         self.assertEqual(rebuilt.curve_segments, 24)
+
+    def test_estimate_curve_path_load_counts_segment_vertices(self) -> None:
+        entities, vertices = native.estimate_curve_path_load(
+            [
+                ("m", (0, 0)),
+                ("c", (10, 0), (20, 0), (30, 0)),
+                ("l", (40, 0)),
+            ],
+            curve_segments=16,
+        )
+
+        self.assertEqual(entities, 1)
+        self.assertEqual(vertices, 18)
+
+    def test_estimate_pdf_workload_counts_selected_pages_and_entities(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pdf_path = Path(tmpdir) / "multi.pdf"
+            make_pdf(pdf_path, page_count=2)
+
+            estimate = native.estimate_pdf_workload(
+                pdf_path,
+                ConversionOptions(pages=(2,), include_text=True, include_page_border=True),
+            )
+
+            self.assertEqual(estimate.source_name, "multi.pdf")
+            self.assertEqual(estimate.page_count, 2)
+            self.assertEqual(estimate.selected_pages, [2])
+            self.assertEqual(estimate.selected_page_count, 1)
+            self.assertGreaterEqual(estimate.vector_entity_count, 1)
+            self.assertGreaterEqual(estimate.text_count, 1)
+            self.assertGreaterEqual(estimate.estimated_dxf_entities, estimate.vector_entity_count)
+
+    def test_validate_workload_estimate_rejects_too_many_selected_pages(self) -> None:
+        estimate = native.WorkloadEstimate(
+            source_name="large.pdf",
+            page_count=native.MAX_SELECTED_PAGES + 1,
+            selected_pages=list(range(1, native.MAX_SELECTED_PAGES + 2)),
+            selected_page_count=native.MAX_SELECTED_PAGES + 1,
+        )
+
+        with self.assertRaisesRegex(ValueError, "selected pages"):
+            native.validate_workload_estimate(estimate)
+
+    def test_validate_workload_estimate_rejects_too_many_estimated_entities(self) -> None:
+        estimate = native.WorkloadEstimate(
+            source_name="dense.pdf",
+            page_count=1,
+            selected_pages=[1],
+            selected_page_count=1,
+            estimated_dxf_entities=native.MAX_ESTIMATED_DXF_ENTITIES + 1,
+        )
+
+        with self.assertRaisesRegex(ValueError, "estimated DXF entities"):
+            native.validate_workload_estimate(estimate)
 
     def test_configure_logging_uses_local_app_data_when_available(self) -> None:
         old_local_app_data = os.environ.get("LOCALAPPDATA")
@@ -111,10 +168,13 @@ class NativeAppHelperTests(unittest.TestCase):
             self.assertGreater(report["vector_entity_count"], 0)
 
 
-def make_pdf(path: Path) -> None:
+def make_pdf(path: Path, page_count: int = 1) -> None:
     pdf = canvas.Canvas(str(path), pagesize=(100, 100))
-    pdf.line(10, 10, 90, 90)
-    pdf.drawString(20, 50, "NATIVE")
+    for page_number in range(1, page_count + 1):
+        pdf.line(10, 10, 90, 90)
+        pdf.drawString(20, 50, f"NATIVE {page_number}")
+        if page_number < page_count:
+            pdf.showPage()
     pdf.save()
 
 

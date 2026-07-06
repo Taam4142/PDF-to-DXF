@@ -12,9 +12,11 @@ import sys
 import tempfile
 import threading
 import traceback
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
+import pdfplumber
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
@@ -25,16 +27,43 @@ from pdf_to_dxf.app_info import (
     APP_EXECUTABLE_NAME,
     APP_VERSION,
 )
-from pdf_to_dxf.converter import ConversionOptions, ConversionReport, convert_pdf_file, inspect_pdf_bytes
+from pdf_to_dxf.converter import (
+    ConversionOptions,
+    ConversionReport,
+    convert_pdf_file,
+    inspect_pdf_bytes,
+    resolve_pages,
+)
 
 
 APP_TITLE = APP_DISPLAY_NAME
 MAX_PDF_BYTES = 50 * 1024 * 1024
+MAX_SELECTED_PAGES = 50
+MAX_ESTIMATED_VECTOR_ENTITIES = 100_000
+MAX_ESTIMATED_DXF_ENTITIES = 150_000
+MAX_ESTIMATED_CURVE_VERTICES = 500_000
 MAX_CURVE_SEGMENTS = 256
 WORKER_TIMEOUT_SECONDS = 300
 ICON_RESOURCE = Path("assets") / "app_icon.ico"
 LOGGER = logging.getLogger("pdf_to_dxf.native")
 WorkerResult = tuple[str, dict[str, Any] | None, str | None, str | None]
+
+
+@dataclass(frozen=True)
+class WorkloadEstimate:
+    source_name: str
+    page_count: int
+    selected_pages: list[int]
+    selected_page_count: int
+    vector_entity_count: int = 0
+    text_count: int = 0
+    image_count: int = 0
+    estimated_dxf_entities: int = 0
+    estimated_curve_vertices: int = 0
+    warnings: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
 
 
 class PdfToDxfNativeApp(tk.Tk):
@@ -243,11 +272,14 @@ class PdfToDxfNativeApp(tk.Tk):
             return
 
         def worker() -> dict[str, Any]:
+            estimate = estimate_pdf_workload(pdf_path, options)
+            validate_workload_estimate(estimate)
             payload = run_conversion_worker(pdf_path, output_path, options)
+            payload["_preflight"] = estimate.to_dict()
             payload["_output_path"] = str(output_path)
             return payload
 
-        self._run_worker("convert", "Exporting DXF...", worker)
+        self._run_worker("convert", "Checking and exporting DXF...", worker)
 
     def _run_worker(self, kind: str, status: str, worker: Callable[[], dict[str, Any]]) -> None:
         if self.busy:
@@ -258,6 +290,8 @@ class PdfToDxfNativeApp(tk.Tk):
         def target() -> None:
             try:
                 self.result_queue.put((kind, worker(), None, None))
+            except ValueError as error:
+                self.result_queue.put((kind, None, str(error) or error.__class__.__name__, None))
             except Exception as error:
                 self.result_queue.put((kind, None, str(error) or error.__class__.__name__, traceback.format_exc()))
 
@@ -274,12 +308,16 @@ class PdfToDxfNativeApp(tk.Tk):
 
         self._set_busy(False, "Ready")
         if error_message:
-            detail = error_detail or error_message
-            LOGGER.error("%s failed.\n%s", kind, detail)
-            self._write_report(f"{error_message}\n\nLog file: {self.log_path}\n\n{detail}")
-            if messagebox.askyesno(APP_TITLE, f"{error_message}\n\nCopy error details to clipboard?"):
-                self.clipboard_clear()
-                self.clipboard_append(detail)
+            if error_detail:
+                LOGGER.error("%s failed.\n%s", kind, error_detail)
+                self._write_report(f"{error_message}\n\nLog file: {self.log_path}\n\n{error_detail}")
+                if messagebox.askyesno(APP_TITLE, f"{error_message}\n\nCopy error details to clipboard?"):
+                    self.clipboard_clear()
+                    self.clipboard_append(error_detail)
+            else:
+                LOGGER.warning("%s stopped: %s", kind, error_message)
+                self._write_report(error_message)
+                messagebox.showwarning(APP_TITLE, error_message)
             return
 
         assert payload is not None
@@ -439,6 +477,157 @@ def format_file_size(byte_count: int) -> str:
     if byte_count < 1024 * 1024:
         return f"{byte_count / 1024:.1f} KB"
     return f"{byte_count / (1024 * 1024):.1f} MB"
+
+
+def estimate_pdf_workload(input_pdf: Path, options: ConversionOptions) -> WorkloadEstimate:
+    with pdfplumber.open(str(input_pdf)) as pdf:
+        selected_pages = resolve_pages(len(pdf.pages), options.pages)
+        estimate = WorkloadEstimate(
+            source_name=input_pdf.name,
+            page_count=len(pdf.pages),
+            selected_pages=selected_pages,
+            selected_page_count=len(selected_pages),
+        )
+        if estimate.selected_page_count > MAX_SELECTED_PAGES:
+            return estimate
+
+        vector_entity_count = 0
+        text_count = 0
+        image_count = 0
+        estimated_dxf_entities = 0
+        estimated_curve_vertices = 0
+
+        for page_number in selected_pages:
+            page = pdf.pages[page_number - 1]
+            page_lines = len(page.lines)
+            page_rects = len(page.rects)
+            page_curves = len(page.curves)
+            page_images = len(page.images)
+            page_texts = 0
+            if options.include_text:
+                page_texts = len(page.extract_words(x_tolerance=1, y_tolerance=3, keep_blank_chars=False))
+
+            page_curve_entities = 0
+            page_curve_vertices = 0
+            for curve in page.curves:
+                curve_entities, curve_vertices = estimate_curve_path_load(
+                    curve.get("path", []),
+                    options.curve_segments,
+                )
+                page_curve_entities += curve_entities
+                page_curve_vertices += curve_vertices
+
+            vector_entity_count += page_lines + page_rects + page_curves
+            text_count += page_texts
+            image_count += page_images
+            estimated_dxf_entities += page_lines + page_rects + page_curve_entities + page_texts
+            if options.include_page_border:
+                estimated_dxf_entities += 1
+            estimated_curve_vertices += page_curve_vertices
+
+        warnings: list[str] = []
+        if image_count and vector_entity_count == 0:
+            warnings.append("Raster images are present but no vector geometry was found.")
+        elif image_count:
+            warnings.append("Raster images will be skipped because raster tracing is not implemented.")
+
+        return WorkloadEstimate(
+            source_name=estimate.source_name,
+            page_count=estimate.page_count,
+            selected_pages=estimate.selected_pages,
+            selected_page_count=estimate.selected_page_count,
+            vector_entity_count=vector_entity_count,
+            text_count=text_count,
+            image_count=image_count,
+            estimated_dxf_entities=estimated_dxf_entities,
+            estimated_curve_vertices=estimated_curve_vertices,
+            warnings=warnings,
+        )
+
+
+def estimate_curve_path_load(path: Iterable[tuple[Any, ...]], curve_segments: int) -> tuple[int, int]:
+    generated_entities = 0
+    generated_vertices = 0
+    active_vertices = 0
+    has_current_point = False
+    has_start_point = False
+
+    def flush() -> None:
+        nonlocal active_vertices, generated_entities, generated_vertices
+        if active_vertices >= 2:
+            generated_entities += 1
+            generated_vertices += active_vertices
+        active_vertices = 0
+
+    for command in path:
+        op = command[0]
+        if op == "m":
+            flush()
+            active_vertices = 1
+            has_current_point = True
+            has_start_point = True
+        elif op == "l" and has_current_point:
+            active_vertices += 1
+        elif op == "c" and has_current_point:
+            active_vertices += max(2, curve_segments)
+        elif op == "h":
+            if has_current_point and has_start_point:
+                active_vertices += 1
+            flush()
+            has_current_point = has_start_point
+
+    flush()
+    return generated_entities, generated_vertices
+
+
+def validate_workload_estimate(estimate: WorkloadEstimate) -> None:
+    errors: list[str] = []
+    if estimate.selected_page_count > MAX_SELECTED_PAGES:
+        errors.append(
+            f"selected pages: {format_count(estimate.selected_page_count)} "
+            f"(limit {format_count(MAX_SELECTED_PAGES)})"
+        )
+    if estimate.vector_entity_count > MAX_ESTIMATED_VECTOR_ENTITIES:
+        errors.append(
+            f"source vector entities: {format_count(estimate.vector_entity_count)} "
+            f"(limit {format_count(MAX_ESTIMATED_VECTOR_ENTITIES)})"
+        )
+    if estimate.estimated_dxf_entities > MAX_ESTIMATED_DXF_ENTITIES:
+        errors.append(
+            f"estimated DXF entities: {format_count(estimate.estimated_dxf_entities)} "
+            f"(limit {format_count(MAX_ESTIMATED_DXF_ENTITIES)})"
+        )
+    if estimate.estimated_curve_vertices > MAX_ESTIMATED_CURVE_VERTICES:
+        errors.append(
+            f"estimated curve vertices: {format_count(estimate.estimated_curve_vertices)} "
+            f"(limit {format_count(MAX_ESTIMATED_CURVE_VERTICES)})"
+        )
+
+    if errors:
+        raise ValueError(build_workload_limit_message(errors, estimate))
+
+
+def build_workload_limit_message(errors: list[str], estimate: WorkloadEstimate) -> str:
+    return "\n".join(
+        [
+            "This PDF is too large for the desktop app safety limits.",
+            "",
+            *[f"- {error}" for error in errors],
+            "",
+            "Preflight estimate:",
+            f"- PDF pages: {format_count(estimate.page_count)}",
+            f"- Selected pages: {format_count(estimate.selected_page_count)}",
+            f"- Source vector entities: {format_count(estimate.vector_entity_count)}",
+            f"- Estimated DXF entities: {format_count(estimate.estimated_dxf_entities)}",
+            f"- Estimated curve vertices: {format_count(estimate.estimated_curve_vertices)}",
+            "",
+            "Try selecting fewer pages, lowering curve segments, or splitting the PDF before export.",
+        ]
+    )
+
+
+def format_count(value: int) -> str:
+    return f"{value:,}"
 
 
 def run_conversion_worker(

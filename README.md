@@ -82,6 +82,9 @@ before replacing an existing `.dxf` file. App logs are written under
 `%LOCALAPPDATA%\PDF-to-DXF\logs\app.log`, with a temp-folder fallback if that
 location is unavailable. The desktop build includes an app icon, Windows file
 version metadata, and an About dialog with version and diagnostics details.
+Before export starts, the app preflights selected page count, source vector
+entities, estimated DXF entities, and estimated curve vertices so unusually
+large jobs fail early with guidance instead of hanging deep in conversion.
 
 Build the executable:
 
@@ -222,6 +225,10 @@ visible vector geometry into CAD-readable DXF geometry.
 
 Raster images are counted and reported, but not traced. If `image_count` is high
 and `vector_entity_count` is zero, the PDF is probably scanned or image-only.
+
+The native Windows desktop app has additional safety limits for interactive use:
+50 MB PDF files, 50 selected pages, 100,000 source vector entities, 150,000
+estimated DXF entities, and 500,000 estimated curve vertices.
 
 For production CAD workflows, review the generated DXF in your CAD tool and keep
 the original PDF attached for traceability.
