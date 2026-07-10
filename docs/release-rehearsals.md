@@ -49,6 +49,9 @@ Checks performed:
 - The same artifact path now passes `scripts\qa_release_artifacts.py`, including
   hash checks, portable smoke, silent install, installed-app smoke, uninstall,
   and cleanup verification.
+- Manual interactive GUI QA passed for the packaged portable app, including the
+  About dialog, vector inspect/export, overwrite confirmation, raster warnings,
+  page validation, multi-page selection, and curve-segment validation.
 
 Notes:
 
@@ -56,5 +59,5 @@ Notes:
 - The draft release shows an `untagged-...` URL while the release metadata keeps
   `tagName` as `v0.1.0`. Re-check tag and URL behavior before publishing if the
   draft is promoted.
-- Run the manual GUI checklist before publishing outside trusted internal
-  testing.
+- Manual GUI QA is complete. Choose a code-signing path before publishing to a
+  broad public audience.

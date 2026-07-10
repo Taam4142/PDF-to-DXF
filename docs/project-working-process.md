@@ -1,6 +1,6 @@
 # Project Working Process
 
-Last updated: 2026-07-03
+Last updated: 2026-07-10
 
 This document records the way we are building this project together. It should
 guide future work so decisions, risks, tests, and next steps do not live only in
@@ -109,6 +109,15 @@ Commit and push when the work is a coherent checkpoint, for example:
 
 Avoid committing half-finished experiments unless they are intentionally saved
 as documentation or a branch checkpoint.
+
+## Task Close-Out
+
+Every completed task ends with Codex recommending the most reasonable next
+step. The recommendation should name the highest-value remaining risk, warning,
+to-do, release action, or feature opportunity, even when no further work is
+required immediately. When there is a meaningful choice, explain the trade-off
+briefly and recommend one path rather than leaving the project without a clear
+direction.
 
 ## Documentation Rules
 
