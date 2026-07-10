@@ -4,6 +4,8 @@ Use this process to publish a versioned Windows desktop release. The release
 workflow rebuilds from source, runs tests, smoke-tests the packaged app, builds
 the installer, then attaches both Windows artifacts to a GitHub Release.
 
+Release dry-run results are tracked in `docs\release-rehearsals.md`.
+
 ## Release Rules
 
 - `pdf_to_dxf/app_info.py` `APP_VERSION` and `pyproject.toml` `project.version`
@@ -54,6 +56,10 @@ The workflow creates a release tag named `v<version>` and attaches:
 
 Until signing is implemented, keep the draft release as a trusted test artifact
 or mark the release notes clearly as unsigned.
+
+For draft releases, GitHub may display an `untagged-...` release URL until the
+release is published even when the release metadata uses the requested tag name.
+Re-check the final release URL and tag before publishing.
 
 ## Published Release From Tag
 
