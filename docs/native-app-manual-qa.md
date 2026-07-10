@@ -24,7 +24,14 @@ packaged app behavior.
    New-Item -ItemType Directory -Force out\native-qa\exports
    ```
 
-4. Launch the app.
+4. For downloaded release artifacts, run the automated artifact QA companion
+   before the interactive checks:
+
+   ```powershell
+   python scripts\qa_release_artifacts.py --release-dir out\release-v0.1.0 --work-dir out\release-v0.1.0-artifact-qa
+   ```
+
+5. Launch the app.
 
 ## Checklist
 
@@ -50,6 +57,9 @@ packaged app behavior.
   ```powershell
   .\dist\windows-native-app\PDF-to-DXF-Desktop.exe --self-test-convert out\native-qa\vector_basic.pdf out\native-qa\exports\self_test.dxf
   ```
+
+- For release assets, prefer `scripts\qa_release_artifacts.py` because it
+  checks both the portable executable and installer path.
 
 - Manual QA is still needed for native dialogs because the automated worker
   smoke test intentionally avoids opening interactive windows.

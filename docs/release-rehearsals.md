@@ -46,6 +46,9 @@ Checks performed:
   - `vector_entity_count`: `3`
   - `generated_entity_count`: `5`
 - Silent uninstall completed successfully with no restart required.
+- The same artifact path now passes `scripts\qa_release_artifacts.py`, including
+  hash checks, portable smoke, silent install, installed-app smoke, uninstall,
+  and cleanup verification.
 
 Notes:
 

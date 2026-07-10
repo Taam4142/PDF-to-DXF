@@ -37,8 +37,14 @@ Release dry-run results are tracked in `docs\release-rehearsals.md`.
 
    Then follow `docs\native-app-manual-qa.md`.
 
-5. Commit and push the version update.
-6. Confirm the current signing decision in `docs\code-signing-plan.md`.
+5. For downloaded release artifacts, run the automated artifact QA companion:
+
+   ```powershell
+   .\.venv\Scripts\python.exe scripts\qa_release_artifacts.py --release-dir out\release-v0.1.0 --work-dir out\release-v0.1.0-artifact-qa
+   ```
+
+6. Commit and push the version update.
+7. Confirm the current signing decision in `docs\code-signing-plan.md`.
 
 ## Draft Release From GitHub UI
 

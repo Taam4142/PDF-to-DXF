@@ -26,7 +26,7 @@ then quality improvements and release polish.
 
 | Status | Item | Current State | Next Action |
 | --- | --- | --- | --- |
-| Partial | Native app tests | Helper, validation, warning summary, preflight, worker, packaged smoke paths, QA fixture generation, and a manual QA checklist are covered. | Add UI automation only if future native UI changes become frequent. |
+| Partial | Native app tests | Helper, validation, warning summary, preflight, worker, packaged smoke paths, QA fixture generation, release artifact QA, and a manual QA checklist are covered. | Add UI automation only if future native UI changes become frequent. |
 | Done | Windows CI build | GitHub Actions builds, tests, smoke-tests, and uploads the desktop `.exe` plus installer artifact. | Watch first runs and tune if dependency/package behavior changes. |
 | Done | Version info, icon, installer | App metadata, `.exe` icon, Windows version resource, About diagnostics, and Inno Setup installer packaging are implemented. | Add code signing before public distribution. |
 | Done | GitHub Release workflow | Tag or manual workflow releases rebuild, test, smoke-test, package, and attach the portable `.exe` plus installer to a versioned release. The first `v0.1.0` draft release rehearsal passed on 2026-07-10. | Use draft releases until code signing is implemented, and run manual GUI QA before publishing. |
@@ -49,6 +49,7 @@ then quality improvements and release polish.
   `tests/test_windows_native_app.py`
 - Native QA fixtures: `scripts/make_native_qa_fixtures.py`
 - Manual native app checklist: `docs/native-app-manual-qa.md`
+- Release artifact QA: `scripts/qa_release_artifacts.py`
 - Packaged app smoke test: `scripts/smoke_native_app.py`
 - Installer asset validation: `scripts/validate_installer_assets.py`
 - CI workflow: `.github/workflows/windows-desktop.yml`
