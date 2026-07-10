@@ -132,8 +132,9 @@ when you specifically want the raw executable.
 Versioned releases are published by the **Windows Release** workflow. It checks
 that the requested version matches app metadata, rebuilds and smoke-tests the
 desktop app, builds the installer, then attaches both Windows artifacts to the
-GitHub Release. Releases are currently unsigned by design; see the code-signing
-plan before publishing broadly.
+GitHub Release. Releases remain unsigned until Microsoft Artifact Signing is
+configured; the guarded workflow then signs and verifies both Windows artifacts.
+See the code-signing plan before publishing broadly.
 
 The browser-based Windows launcher is still available through
 `windows_app.spec` when you specifically want the local web UI packaged as an

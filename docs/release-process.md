@@ -14,10 +14,13 @@ Release dry-run results are tracked in `docs\release-rehearsals.md`.
 - The tag or manual workflow version must match `APP_VERSION`.
 - Manual workflow releases are drafts by default.
 - Tag-push releases are published immediately.
-- The Windows app and installer are not code-signed yet. The workflow records
-  unsigned status in release notes, and SmartScreen warnings are expected.
-- Do not set `WINDOWS_SIGNING_MODE` to a signed mode until the matching signing
-  step has been implemented.
+- The Windows app and installer remain unsigned until Azure Artifact Signing is
+  configured. In unsigned mode, the workflow records the status in release
+  notes and SmartScreen warnings are expected.
+- When `WINDOWS_SIGNING_MODE=azure-artifact-signing` is fully configured, the
+  workflow signs the portable app before creating the installer, signs the
+  installer afterwards, and verifies both signatures before release assets are
+  attached.
 
 ## Before Release
 
@@ -45,6 +48,8 @@ Release dry-run results are tracked in `docs\release-rehearsals.md`.
 
 6. Commit and push the version update.
 7. Confirm the current signing decision in `docs\code-signing-plan.md`.
+   For a public release, complete its Azure and GitHub setup section and run a
+   signed draft release before publishing.
 
 ## Draft Release From GitHub UI
 
@@ -60,8 +65,10 @@ The workflow creates a release tag named `v<version>` and attaches:
 - `PDF-to-DXF-Desktop-<version>.exe`
 - `PDF-to-DXF-Desktop-Setup-<version>.exe`
 
-Until signing is implemented, keep the draft release as a trusted test artifact
-or mark the release notes clearly as unsigned.
+Until signing is configured, keep the draft release as a trusted test artifact
+or mark the release notes clearly as unsigned. After the first signed draft,
+run the manual native QA checklist against both signed artifacts before
+publishing.
 
 For draft releases, GitHub may display an `untagged-...` release URL until the
 release is published even when the release metadata uses the requested tag name.

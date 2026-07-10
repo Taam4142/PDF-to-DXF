@@ -6,10 +6,15 @@ better with Authenticode signatures on both the portable `.exe` and installer.
 
 ## Current Decision
 
-Keep releases unsigned until a signing provider is chosen. The release workflow
-now records signing status and fails if a signed mode is configured before the
-actual signing step exists. This avoids a half-signed or accidentally mislabeled
-release.
+Microsoft Artifact Signing is the chosen signing provider. The Windows Release
+workflow now supports it with GitHub OIDC, signs the portable application before
+building the installer, signs the installer afterwards, and verifies both
+Authenticode signatures before release assets are prepared.
+
+The workflow remains unsigned by default until the Azure account, certificate
+profile, federated credential, repository settings, and roles below are
+configured. A partially configured signing mode fails the release instead of
+silently publishing unsigned artifacts.
 
 ## Recommended Path
 
@@ -64,30 +69,54 @@ Current release workflow behavior:
 
 - If `WINDOWS_SIGNING_MODE` is unset or `unsigned`, release proceeds and records
   that SmartScreen warnings are expected.
-- If `WINDOWS_SIGNING_MODE` is set to a signed mode, release fails until the
-  matching signing step is deliberately added.
+- If `WINDOWS_SIGNING_MODE=azure-artifact-signing`, the workflow requires a
+  complete OIDC configuration, signs both release executables, and verifies
+  them with `Get-AuthenticodeSignature` before creating the release.
+- Any other signed planning mode fails safely because it does not have an
+  implemented release step.
 
-Future Artifact Signing configuration will likely need:
+## Azure And GitHub Setup
 
-- `WINDOWS_SIGNING_MODE=azure-artifact-signing`
-- `AZURE_ARTIFACT_SIGNING_ENDPOINT`
-- `AZURE_ARTIFACT_SIGNING_ACCOUNT`
-- `AZURE_ARTIFACT_SIGNING_CERT_PROFILE`
-- Azure authentication through workload identity or service principal secrets.
+Complete these steps in the Azure account that will own the public publisher
+identity. None of these credentials belong in source control.
+
+1. Create an Artifact Signing account, complete identity validation, and create
+   a public-trust code-signing certificate profile.
+2. Create an Azure application/service principal for GitHub Actions and assign
+   it the `Artifact Signing Certificate Profile Signer` role for that profile.
+3. Add a GitHub OIDC federated credential to the application and scope it to
+   this repository and the release refs that are permitted to sign. Standard
+   configurations may need separate credentials for tag releases and manual
+   workflow runs from `main`.
+4. Add these **GitHub Actions repository variables**:
+
+   - `WINDOWS_SIGNING_MODE=azure-artifact-signing`
+   - `AZURE_ARTIFACT_SIGNING_ENDPOINT`, matching the Azure signing account's
+     region
+   - `AZURE_ARTIFACT_SIGNING_ACCOUNT`
+   - `AZURE_ARTIFACT_SIGNING_CERT_PROFILE`
+
+5. Add these **GitHub Actions repository secrets**:
+
+   - `AZURE_TENANT_ID`
+   - `AZURE_CLIENT_ID`
+   - `AZURE_SUBSCRIPTION_ID`
+
+6. Run a draft release. It must show a successful signing step and an
+   Authenticode verification report for both artifacts before it can be
+   published.
+
+OIDC is used instead of a long-lived Azure client secret or an exported signing
+private key. The Microsoft Artifact Signing action supports GitHub-hosted
+Windows runners and recommends OIDC authentication.
 
 ## Implementation Checklist
 
-1. Choose signing provider and account owner.
-2. Complete provider identity validation.
-3. Create signing certificate/profile.
-4. Add CI authentication through GitHub repository or environment secrets.
-5. Add a signing step between installer build and release asset preparation.
-6. Sign portable `.exe`.
-7. Sign installer `.exe`.
-8. Verify both signatures with SignTool.
-9. Update `docs/release-process.md` from unsigned/draft to signed release
-   instructions.
-10. Run manual QA on a signed installer before publishing.
+1. Complete the Azure and GitHub setup above.
+2. Run a signed draft release.
+3. Confirm both signatures in the workflow's verification report.
+4. Run manual QA on the signed portable app and signed installer.
+5. Update the published-release notes to remove the unsigned warning.
 
 ## References
 
@@ -99,3 +128,7 @@ Future Artifact Signing configuration will likely need:
   https://learn.microsoft.com/en-us/windows/win32/seccrypto/signtool
 - GitHub Actions secrets:
   https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets
+- Azure Login Action OIDC guidance:
+  https://github.com/Azure/login
+- Microsoft Artifact Signing GitHub Action:
+  https://github.com/Azure/artifact-signing-action

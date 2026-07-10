@@ -73,8 +73,8 @@ def validate_signing_config(
 
     if not allow_signed_modes:
         raise ValueError(
-            f"WINDOWS_SIGNING_MODE is {mode!r}, but signed release steps are not enabled in CI yet. "
-            f"Keep WINDOWS_SIGNING_MODE unset/{UNSIGNED_MODE!r} or add the signing step first."
+            f"WINDOWS_SIGNING_MODE is {mode!r}, but signed configuration is disabled for this invocation. "
+            "Use --allow-signed-modes only from a release workflow that implements the matching signing step."
         )
 
     missing = missing_inputs_for_mode(mode, environ)
@@ -114,11 +114,9 @@ def missing_inputs_for_mode(mode: str, environ: dict[str, str] | os._Environ[str
             "AZURE_ARTIFACT_SIGNING_CERT_PROFILE",
             "AZURE_TENANT_ID",
             "AZURE_CLIENT_ID",
+            "AZURE_SUBSCRIPTION_ID",
         ]
-        missing = missing_names(required, environ)
-        if not environ.get("AZURE_CLIENT_SECRET") and not environ.get("AZURE_FEDERATED_TOKEN_FILE"):
-            missing.append("AZURE_CLIENT_SECRET or AZURE_FEDERATED_TOKEN_FILE")
-        return missing
+        return missing_names(required, environ)
     if mode == SIGNTOOL_STORE_MODE:
         return missing_names(["WINDOWS_SIGNING_CERT_SHA1"], environ)
     if mode == SIGNTOOL_PFX_MODE:

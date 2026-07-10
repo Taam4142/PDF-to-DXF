@@ -22,8 +22,8 @@ class SigningConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unsupported"):
             signing_config.validate_signing_config({"WINDOWS_SIGNING_MODE": "surprise"})
 
-    def test_rejects_signed_mode_until_ci_signing_step_exists(self) -> None:
-        with self.assertRaisesRegex(ValueError, "not enabled in CI yet"):
+    def test_rejects_signed_mode_when_signed_configuration_is_not_explicitly_enabled(self) -> None:
+        with self.assertRaisesRegex(ValueError, "disabled for this invocation"):
             signing_config.validate_signing_config(
                 {
                     "WINDOWS_SIGNING_MODE": signing_config.AZURE_ARTIFACT_SIGNING_MODE,
@@ -32,7 +32,7 @@ class SigningConfigTests(unittest.TestCase):
                     "AZURE_ARTIFACT_SIGNING_CERT_PROFILE": "profile",
                     "AZURE_TENANT_ID": "tenant",
                     "AZURE_CLIENT_ID": "client",
-                    "AZURE_CLIENT_SECRET": "secret",
+                    "AZURE_SUBSCRIPTION_ID": "subscription",
                 }
             )
 
@@ -45,7 +45,7 @@ class SigningConfigTests(unittest.TestCase):
                 "AZURE_ARTIFACT_SIGNING_CERT_PROFILE": "profile",
                 "AZURE_TENANT_ID": "tenant",
                 "AZURE_CLIENT_ID": "client",
-                "AZURE_CLIENT_SECRET": "secret",
+                "AZURE_SUBSCRIPTION_ID": "subscription",
             },
             allow_signed_modes=True,
         )
@@ -61,7 +61,7 @@ class SigningConfigTests(unittest.TestCase):
 
         self.assertFalse(config.ready_to_sign)
         self.assertIn("AZURE_ARTIFACT_SIGNING_ENDPOINT", config.missing)
-        self.assertIn("AZURE_CLIENT_SECRET or AZURE_FEDERATED_TOKEN_FILE", config.missing)
+        self.assertIn("AZURE_SUBSCRIPTION_ID", config.missing)
 
     def test_reports_complete_signtool_pfx_config(self) -> None:
         config = signing_config.validate_signing_config(
@@ -75,13 +75,26 @@ class SigningConfigTests(unittest.TestCase):
 
         self.assertTrue(config.ready_to_sign)
 
-    def test_release_workflow_records_signing_status_without_requiring_secrets(self) -> None:
+    def test_release_workflow_uses_guarded_azure_artifact_signing(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "windows-release.yml").read_text(encoding="utf-8")
+        verifier = (ROOT / "scripts" / "verify_authenticode_signatures.ps1").read_text(encoding="utf-8")
 
         self.assertIn("Validate signing configuration", workflow)
         self.assertIn("scripts\\validate_signing_config.py", workflow)
+        self.assertIn("--allow-signed-modes", workflow)
         self.assertIn("WINDOWS_SIGNING_MODE", workflow)
         self.assertIn("signing-status.json", workflow)
+        self.assertIn("id-token: write", workflow)
+        self.assertIn("azure/login@v3", workflow)
+        self.assertIn("azure/artifact-signing-action@v2", workflow)
+        self.assertIn("verify_authenticode_signatures.ps1", workflow)
+        self.assertIn("portable-authenticode-verification.json", workflow)
+        self.assertIn("installer-authenticode-verification.json", workflow)
+        self.assertLess(workflow.index("Sign portable executable"), workflow.index("Build installer"))
+        self.assertLess(workflow.index("Build installer"), workflow.index("Sign installer"))
+        self.assertLess(workflow.index("Sign installer"), workflow.index("Prepare release assets"))
+        self.assertIn("Get-AuthenticodeSignature", verifier)
+        self.assertIn('status -ne "Valid"', verifier)
 
 
 if __name__ == "__main__":
